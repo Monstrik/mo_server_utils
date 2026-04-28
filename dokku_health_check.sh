@@ -41,7 +41,8 @@ else
         # Use cat to fully consume output and avoid broken pipe
         PS_STATUS=$(dokku ps:report "$app" 2>/dev/null | cat)
         if [ -n "$PS_STATUS" ]; then
-            echo "$PS_STATUS" | grep -iE "Status:|Running:|Deployed:|Internal port:" || echo "$PS_STATUS" | head -n 5
+            # Show process status and running state
+            echo "$PS_STATUS" | grep -iE "Status:|Running:|Deployed:|Internal port:|Canary status:|Process type:" || echo "$PS_STATUS" | grep -vE "^=====" | head -n 8
         else
             echo "No process status available for $app"
         fi
@@ -50,7 +51,8 @@ else
         # Use cat and capture to variable
         APPS_REPORT=$(dokku apps:report "$app" 2>/dev/null | cat)
         if [ -n "$APPS_REPORT" ]; then
-            echo "$APPS_REPORT" | grep -iE "Status:|Deployed:|App dir:|Git sha:" || echo "$APPS_REPORT" | head -n 5
+            # Show app details including metadata and git info
+            echo "$APPS_REPORT" | grep -iE "Status:|Deployed:|App dir:|Git sha:|Commit message:|Owner:" || echo "$APPS_REPORT" | grep -vE "^=====" | head -n 8
         else
             echo "Could not get report for $app"
         fi
@@ -77,9 +79,20 @@ if echo "$PLUGINS" | grep -q "letsencrypt"; then
             # Show letsencrypt report for the app
             # Use cat to avoid broken pipe and check if enabled first
             LE_REPORT=$(dokku letsencrypt:app-report "$app" 2>/dev/null | cat)
-            if echo "$LE_REPORT" | grep -qiE "Enabled:[[:space:]]*true"; then
-                echo "--- App: $app ---"
+            # More robust check: look for "Enabled: true" or if there's an expiration date
+            if echo "$LE_REPORT" | grep -qiE "Enabled:[[:space:]]*true|Expiration[[:space:]]*date:"; then
+                echo "--- App: $app (LetsEncrypt) ---"
                 echo "$LE_REPORT" | grep -iE "Status:|Enabled:|Domains:|Expiration date:"
+                SSL_FOUND=true
+            fi
+
+            # Also check for standard certificates
+            CERTS_REPORT=$(dokku certs:report "$app" 2>/dev/null | cat)
+            if echo "$CERTS_REPORT" | grep -qiE "Expires[[:space:]]*at:|Certificate[[:space:]]*fingerprint:"; then
+                if [ "$SSL_FOUND" = false ]; then
+                    echo "--- App: $app (Custom Cert) ---"
+                fi
+                echo "$CERTS_REPORT" | grep -iE "Expires at:|Issuer:|Subject:"
                 SSL_FOUND=true
             fi
         done
