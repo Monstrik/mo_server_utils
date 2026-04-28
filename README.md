@@ -28,6 +28,7 @@ Estimates the physical age of the server hardware.
 Automates local directory backups.
 - Creates compressed `.tar.gz` archives.
 - Implements retention-based rotation (removes old backups).
+- **Note:** Includes a safety confirmation prompt. Use `-f` or `--force` for non-interactive use.
 
 ### 5. `network_health.sh`
 Verifies network connectivity and latency.
@@ -48,6 +49,7 @@ Monitors database service status.
 Optimizes storage by managing log files.
 - Identifies large log files in `/var/log`.
 - Purges old compressed log archives (`.gz`).
+- **Note:** Includes a safety confirmation prompt. Use `-f` or `--force` for non-interactive use.
 
 ### 9. `ssl_expiry_check.sh`
 Monitors SSL certificate expiration dates.

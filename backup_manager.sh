@@ -9,8 +9,25 @@ BACKUP_DIR="${2:-/var/backups/server_utils}"
 RETENTION_DAYS=7
 TIMESTAMP=$(date +%Y%m%d_%H%M%S)
 BACKUP_NAME="backup_$TIMESTAMP.tar.gz"
+FORCE=false
+
+# Check for force flag (must be checked carefully if other args are used)
+for arg in "$@"; do
+    if [[ "$arg" == "-f" ]] || [[ "$arg" == "--force" ]]; then
+        FORCE=true
+    fi
+done
 
 echo "===== BACKUP MANAGER ====="
+
+if [ "$FORCE" = false ]; then
+    echo "⚠️  WARNING: This script creates backups and DELETES old backups older than $RETENTION_DAYS days in $BACKUP_DIR."
+    read -p "Are you sure you want to proceed? (y/N): " confirm
+    if [[ ! "$confirm" =~ ^[Yy]$ ]]; then
+        echo "Operation cancelled."
+        exit 0
+    fi
+fi
 
 # Ensure backup directory exists
 if [ ! -d "$BACKUP_DIR" ]; then

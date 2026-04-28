@@ -7,8 +7,23 @@
 LOG_DIR="/var/log"
 THRESHOLD_MB=100
 MAX_AGE_DAYS=30
+FORCE=false
+
+# Check for force flag
+if [[ "$1" == "-f" ]] || [[ "$1" == "--force" ]]; then
+    FORCE=true
+fi
 
 echo "===== LOG CLEANER ====="
+
+if [ "$FORCE" = false ]; then
+    echo "⚠️  WARNING: This script identifies large logs and DELETES compressed logs older than $MAX_AGE_DAYS days."
+    read -p "Are you sure you want to proceed? (y/N): " confirm
+    if [[ ! "$confirm" =~ ^[Yy]$ ]]; then
+        echo "Operation cancelled."
+        exit 0
+    fi
+fi
 
 # Function to check if a command exists
 command_exists() {
