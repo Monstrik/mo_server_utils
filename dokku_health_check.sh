@@ -27,7 +27,7 @@ echo "[3] Running Containers & Status"
 # Check which apps are running and their status
     # The first line is usually a header like '=== my apps'
     # We skip lines starting with '=' or empty lines
-    apps=$(dokku apps:list --ps | grep -vE "^===|^$" | awk '{print $1}')
+    apps=$(dokku apps:list | cat | grep -vE "^===|^$" | awk '{print $1}')
 
 if [ -z "$apps" ] || [ "$apps" == "App" ]; then
     echo "No apps found."
@@ -47,8 +47,8 @@ dokku plugin:list
 echo
 
 echo "[5] SSL/LetsEncrypt Status"
-if dokku plugin:list | grep -q "letsencrypt"; then
-    apps=$(dokku apps:list --ps | grep -vE "^===|^$" | awk '{print $1}')
+if dokku plugin:list | cat | grep -q "letsencrypt"; then
+    apps=$(dokku apps:list | cat | grep -vE "^===|^$" | awk '{print $1}')
     if [ -n "$apps" ] && [ "$apps" != "App" ]; then
         for app in $apps; do
             if [ "$app" == "App" ]; then continue; fi
