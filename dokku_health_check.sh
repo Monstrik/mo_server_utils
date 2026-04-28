@@ -46,7 +46,25 @@ echo "[4] Plugin Status"
 dokku plugin:list
 echo
 
-echo "[5] Database Services Status"
+echo "[5] SSL/LetsEncrypt Status"
+if dokku plugin:list | grep -q "letsencrypt"; then
+    apps=$(dokku apps:list --ps | grep -vE "^===|^$" | awk '{print $1}')
+    if [ -n "$apps" ] && [ "$apps" != "App" ]; then
+        for app in $apps; do
+            if [ "$app" == "App" ]; then continue; fi
+            echo "--- App: $app ---"
+            # Show letsencrypt report for the app
+            dokku letsencrypt:app-report "$app" 2>/dev/null | grep -E "Status:|Enabled:|Domains:|Expiration date:" || echo "SSL not configured for $app"
+        done
+    else
+        echo "No apps found to check SSL status."
+    fi
+else
+    echo "dokku-letsencrypt plugin not found. Skipping SSL check."
+fi
+echo
+
+echo "[6] Database Services Status"
 # Check for common database plugins and list their services
 DB_PLUGINS=("postgres" "mysql" "mariadb" "redis" "mongodb")
 FOUND_DB_SERVICES=false
@@ -81,7 +99,7 @@ if [ "$FOUND_DB_SERVICES" = false ]; then
     echo
 fi
 
-echo "[6] Resource Usage (Docker Stats for Dokku)"
+echo "[7] Resource Usage (Docker Stats for Dokku)"
 if command_exists docker; then
     # Filter docker stats to show only containers managed by dokku
     DOKKU_CONTAINERS=$(docker ps --filter "label=com.dokku.app-name" -q | xargs)
@@ -100,7 +118,7 @@ else
 fi
 echo
 
-echo "[7] Dokku Storage Usage"
+echo "[8] Dokku Storage Usage"
 DOKKU_LIB="/var/lib/dokku"
 if [ -d "$DOKKU_LIB" ]; then
     sudo du -sh "$DOKKU_LIB" 2>/dev/null || echo "Permission denied for $DOKKU_LIB"
