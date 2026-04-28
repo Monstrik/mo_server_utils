@@ -20,14 +20,17 @@ dokku version
 echo
 
 echo "[2] Apps Status"
-dokku apps:list
+APPS_LIST=$(dokku apps:list | cat)
+echo "$APPS_LIST"
 echo
 
 echo "[3] Running Containers & Status"
 # Check which apps are running and their status
-    # The first line is usually a header like '=== my apps'
-    # We skip lines starting with '=' or empty lines
-    apps=$(dokku apps:list | cat | grep -vE "^===|^$" | awk '{print $1}')
+# We reuse APPS_LIST if already fetched, or fetch it here
+if [ -z "$APPS_LIST" ]; then
+    APPS_LIST=$(dokku apps:list | cat)
+fi
+apps=$(echo "$APPS_LIST" | grep -vE "^===|^$" | awk '{print $1}')
 
 if [ -z "$apps" ] || [ "$apps" == "App" ]; then
     echo "No apps found."
@@ -43,12 +46,17 @@ else
 fi
 
 echo "[4] Plugin Status"
-dokku plugin:list
+PLUGINS=$(dokku plugin:list | cat)
+echo "$PLUGINS"
 echo
 
 echo "[5] SSL/LetsEncrypt Status"
-if dokku plugin:list | cat | grep -q "letsencrypt"; then
-    apps=$(dokku apps:list | cat | grep -vE "^===|^$" | awk '{print $1}')
+# Check if letsencrypt plugin is installed - use the already fetched PLUGINS list
+if echo "$PLUGINS" | grep -q "letsencrypt"; then
+    if [ -z "$APPS_LIST" ]; then
+        APPS_LIST=$(dokku apps:list | cat)
+    fi
+    apps=$(echo "$APPS_LIST" | grep -vE "^===|^$" | awk '{print $1}')
     if [ -n "$apps" ] && [ "$apps" != "App" ]; then
         for app in $apps; do
             if [ "$app" == "App" ]; then continue; fi
@@ -74,8 +82,8 @@ DB_PLUGINS=("postgres" "mysql" "mariadb" "redis" "mongodb")
 FOUND_DB_SERVICES=false
 
 for plugin in "${DB_PLUGINS[@]}"; do
-    # Use cat to avoid broken pipe if grep finishes early
-    if dokku plugin:list | cat | grep -q "$plugin"; then
+    # Check if plugin is installed using the already fetched PLUGINS list
+    if echo "$PLUGINS" | grep -q "$plugin"; then
         echo "--- $plugin services ---"
         # list services for the plugin
         # Use a temporary file to avoid broken pipe when reading into a variable
