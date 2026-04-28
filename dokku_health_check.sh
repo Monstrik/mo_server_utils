@@ -52,9 +52,13 @@ if dokku plugin:list | cat | grep -q "letsencrypt"; then
     if [ -n "$apps" ] && [ "$apps" != "App" ]; then
         for app in $apps; do
             if [ "$app" == "App" ]; then continue; fi
-            echo "--- App: $app ---"
             # Show letsencrypt report for the app
-            dokku letsencrypt:app-report "$app" 2>/dev/null | grep -E "Status:|Enabled:|Domains:|Expiration date:" || echo "SSL not configured for $app"
+            # Use cat to avoid broken pipe and check if enabled first
+            LE_REPORT=$(dokku letsencrypt:app-report "$app" 2>/dev/null | cat)
+            if echo "$LE_REPORT" | grep -q "Enabled:.*true"; then
+                echo "--- App: $app ---"
+                echo "$LE_REPORT" | grep -E "Status:|Enabled:|Domains:|Expiration date:"
+            fi
         done
     else
         echo "No apps found to check SSL status."
