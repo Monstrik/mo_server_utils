@@ -38,9 +38,22 @@ else
     for app in $apps; do
         if [ "$app" == "App" ]; then continue; fi
         echo "--- App: $app ---"
-        dokku ps:report "$app" --status 2>/dev/null || echo "Could not get status for $app"
+        # Use cat to fully consume output and avoid broken pipe
+        PS_STATUS=$(dokku ps:report "$app" 2>/dev/null | cat)
+        if [ -n "$PS_STATUS" ]; then
+            echo "$PS_STATUS" | grep -iE "Status:|Running:|Deployed:|Internal port:" || echo "$PS_STATUS" | head -n 5
+        else
+            echo "No process status available for $app"
+        fi
+        
         echo "Details:"
-        dokku apps:report "$app" --status --deployed 2>/dev/null | grep -E "Status:|Deployed:"
+        # Use cat and capture to variable
+        APPS_REPORT=$(dokku apps:report "$app" 2>/dev/null | cat)
+        if [ -n "$APPS_REPORT" ]; then
+            echo "$APPS_REPORT" | grep -iE "Status:|Deployed:|App dir:|Git sha:" || echo "$APPS_REPORT" | head -n 5
+        else
+            echo "Could not get report for $app"
+        fi
         echo
     done
 fi
@@ -58,16 +71,21 @@ if echo "$PLUGINS" | grep -q "letsencrypt"; then
     fi
     apps=$(echo "$APPS_LIST" | grep -vE "^===|^$" | awk '{print $1}')
     if [ -n "$apps" ] && [ "$apps" != "App" ]; then
+        SSL_FOUND=false
         for app in $apps; do
             if [ "$app" == "App" ]; then continue; fi
             # Show letsencrypt report for the app
             # Use cat to avoid broken pipe and check if enabled first
             LE_REPORT=$(dokku letsencrypt:app-report "$app" 2>/dev/null | cat)
-            if echo "$LE_REPORT" | grep -q "Enabled:.*true"; then
+            if echo "$LE_REPORT" | grep -qiE "Enabled:[[:space:]]*true"; then
                 echo "--- App: $app ---"
-                echo "$LE_REPORT" | grep -E "Status:|Enabled:|Domains:|Expiration date:"
+                echo "$LE_REPORT" | grep -iE "Status:|Enabled:|Domains:|Expiration date:"
+                SSL_FOUND=true
             fi
         done
+        if [ "$SSL_FOUND" = false ]; then
+            echo "No apps have LetsEncrypt SSL enabled."
+        fi
     else
         echo "No apps found to check SSL status."
     fi
