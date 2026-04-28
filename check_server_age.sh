@@ -68,7 +68,7 @@ echo -e "\n[Total RAM]\n${ram_total} GB $ram_source"
 echo -e "\n[Storage Devices]"
 total_storage=0
 
-lsblk -d -o NAME,SIZE,ROTA,TYPE | grep disk | while read name size rota type; do
+while read -r name size rota type; do
   if [[ "$name" == nvme* ]]; then
     dtype="NVMe ⚡"
   elif [[ "$rota" == "0" ]]; then
@@ -77,7 +77,16 @@ lsblk -d -o NAME,SIZE,ROTA,TYPE | grep disk | while read name size rota type; do
     dtype="HDD"
   fi
   echo "/dev/$name - $size ($dtype)"
-done
+  
+  # Accumulate total storage (extract numeric part)
+  num=$(echo "$size" | grep -oE "[0-9.]+" | head -n1)
+  if [[ -n "$num" ]]; then
+    # Simple addition using bc or shell arithmetic as fallback
+    total_storage=$(echo "$total_storage + $num" | bc 2>/dev/null || echo $((total_storage + ${num%.*})))
+  fi
+done < <(lsblk -d -o NAME,SIZE,ROTA,TYPE | grep disk)
+
+echo "Total Disk Capacity: ~${total_storage} GB (approx)"
 
 # --- AGE ---
 current_year=$(date +%Y)
