@@ -61,6 +61,12 @@ Tracks pending OS security updates.
 - Supports APT (Debian/Ubuntu) and YUM (RHEL/CentOS).
 - Reports the number of packages awaiting updates.
 
+### 11. `dokku_health_check.sh`
+Monitors Dokku PaaS status and applications.
+- Lists all apps and their deployment status.
+- Shows container details and plugin status.
+- Reports resource usage (CPU/Memory) specifically for Dokku apps.
+
 ## Usage
 
 1. **Clone the repository:**
