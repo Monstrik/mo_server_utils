@@ -52,15 +52,21 @@ DB_PLUGINS=("postgres" "mysql" "mariadb" "redis" "mongodb")
 FOUND_DB_SERVICES=false
 
 for plugin in "${DB_PLUGINS[@]}"; do
-    if dokku plugin:list | grep -q "$plugin"; then
+    # Use cat to avoid broken pipe if grep finishes early
+    if dokku plugin:list | cat | grep -q "$plugin"; then
         echo "--- $plugin services ---"
         # list services for the plugin
-        services=$(dokku "$plugin":list 2>/dev/null | grep -vE "^===|^$" | awk '{print $1}')
+        # Use a temporary file to avoid broken pipe when reading into a variable
+        dokku "$plugin":list 2>/dev/null > "/tmp/dokku_${plugin}_services"
+        services=$(grep -vE "^===|^$" "/tmp/dokku_${plugin}_services" | awk '{print $1}')
+        rm -f "/tmp/dokku_${plugin}_services"
         if [ -n "$services" ] && [ "$services" != "Service" ]; then
             for service in $services; do
                 if [ "$service" == "Service" ]; then continue; fi
                 echo "Service: $service"
-                dokku "$plugin":report "$service" --status 2>/dev/null | grep "Status:" || echo "No status available"
+                # info command usually gives a good summary
+                # Use cat to consume all output and avoid broken pipe
+                dokku "$plugin":info "$service" 2>/dev/null | cat | grep -E "Status:|Running:|Exposed ports:|Config dir:|Data dir:" || echo "No status available"
             done
             FOUND_DB_SERVICES=true
         else
@@ -78,9 +84,9 @@ fi
 echo "[6] Resource Usage (Docker Stats for Dokku)"
 if command_exists docker; then
     # Filter docker stats to show only containers managed by dokku
-    DOKKU_CONTAINERS=$(docker ps --filter "label=com.dokku.app-name" -q)
+    DOKKU_CONTAINERS=$(docker ps --filter "label=com.dokku.app-name" -q | xargs)
     # Also include database containers if possible (they usually have com.dokku.service-name label)
-    DOKKU_SERVICE_CONTAINERS=$(docker ps --filter "label=com.dokku.service-name" -q)
+    DOKKU_SERVICE_CONTAINERS=$(docker ps --filter "label=com.dokku.service-name" -q | xargs)
     
     ALL_CONTAINERS="$DOKKU_CONTAINERS $DOKKU_SERVICE_CONTAINERS"
     
